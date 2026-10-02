@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueFlow｜排隊叫號系統</title>
+  <style>
+    :root { --ink:#172033; --muted:#718096; --line:#e8edf4; --blue:#315efb; --blue-soft:#edf2ff; --green:#0f9f72; --orange:#f59e0b; --bg:#f5f7fb; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--bg); font-family:Inter, system-ui, -apple-system, "Noto Sans TC", sans-serif; }
+    .app { min-height:100vh; }
+    header { height:76px; display:flex; align-items:center; justify-content:space-between; padding:0 5vw; background:white; border-bottom:1px solid var(--line); }
+    .brand { display:flex; gap:12px; align-items:center; font-weight:800; font-size:20px; }
+    .logo { width:38px; height:38px; display:grid; place-items:center; border-radius:12px; color:white; background:linear-gradient(135deg,#315efb,#7c5cff); }
+    .status { color:var(--green); font-size:14px; font-weight:700; }
+    .status::before { content:""; width:8px; height:8px; display:inline-block; margin-right:7px; border-radius:50%; background:var(--green); }
+    main { width:min(1180px,92%); margin:34px auto 60px; }
+    .intro h1 { margin:0 0 8px; font-size:clamp(28px,4vw,42px); letter-spacing:-1px; }
+    .intro p { margin:0 0 28px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+    .card { padding:24px; background:white; border:1px solid var(--line); border-radius:18px; box-shadow:0 8px 24px #17203308; }
+    .card h2 { margin:0 0 5px; font-size:19px; } .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+    label { display:block; margin:15px 0 7px; color:#526078; font-size:13px; font-weight:700; }
+    input { width:100%; padding:12px 13px; border:1px solid #d9e0eb; border-radius:9px; outline:0; font-size:15px; } input:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft); }
+    button.primary { width:100%; margin-top:20px; border:0; padding:13px; border-radius:9px; color:white; background:var(--blue); cursor:pointer; font-size:15px; font-weight:800; }
+    button.primary:hover, .action:hover { filter:brightness(.95); transform:translateY(-1px); }
+    .ticket { display:none; margin-top:18px; padding:15px; text-align:center; border:1px dashed #b5c5ff; border-radius:12px; background:var(--blue-soft); }
+    .ticket.show { display:block; } .ticket strong { display:block; color:var(--blue); font-size:28px; margin-top:4px; }
+    .random { width:100%; margin-top:9px; border:1px solid #cfd8eb; padding:11px; border-radius:9px; color:#53627a; background:white; cursor:pointer; font-weight:700; }
+    .random:hover { border-color:var(--blue); color:var(--blue); }
+    .now-card { margin-bottom:20px; padding:25px; color:white; background:linear-gradient(135deg,#2749c7,#6849d8); border-radius:18px; box-shadow:0 12px 25px #315efb25; }
+    .now-card small { opacity:.78; font-weight:700; } .now-card .current { display:flex; align-items:end; justify-content:space-between; gap:16px; margin-top:8px; }
+    .now-card .current-number { font-size:clamp(42px,6vw,66px); line-height:1; font-weight:900; letter-spacing:2px; }
+    .now-card .current-info { text-align:right; } .now-card .current-info b { display:block; font-size:19px; } .now-card .current-info span { opacity:.8; font-size:13px; }
+    .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+    .metric { padding:19px; background:white; border:1px solid var(--line); border-radius:15px; } .metric small { color:var(--muted); } .metric b { display:block; margin-top:8px; font-size:30px; }
+    .section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; } .section-title h2 { margin:0; font-size:19px; }
+    .queue-list { display:flex; flex-direction:column; gap:10px; } .queue-item { display:flex; align-items:center; gap:14px; padding:14px; border:1px solid var(--line); border-radius:12px; }
+    .number { min-width:50px; padding:8px 5px; color:var(--blue); background:var(--blue-soft); border-radius:8px; text-align:center; font-weight:900; } .person { flex:1; } .person b { display:block; } .person span { color:var(--muted); font-size:13px; }
+    .badge { padding:5px 9px; border-radius:99px; color:#9a6500; background:#fff5d9; font-size:12px; font-weight:700; }
+    .actions { display:flex; gap:8px; } .action { border:0; padding:9px 12px; border-radius:8px; color:white; background:var(--blue); cursor:pointer; font-weight:700; } .action.done { background:var(--green); } .action.muted { color:#596579; background:#eef1f5; }
+    .toolbar { display:flex; align-items:center; gap:14px; }
+    .switch-label { display:flex; align-items:center; gap:8px; color:#66738a; font-size:13px; font-weight:700; cursor:pointer; }
+    .switch-label input { position:absolute; opacity:0; width:1px; height:1px; }
+    .switch { width:38px; height:22px; padding:2px; border-radius:99px; background:#cbd5e1; transition:.2s; }
+    .switch::after { content:''; display:block; width:18px; height:18px; border-radius:50%; background:white; box-shadow:0 1px 3px #0003; transition:.2s; }
+    .switch-label input:checked + .switch { background:var(--green); }
+    .switch-label input:checked + .switch::after { transform:translateX(16px); }
+    .empty { padding:30px; color:var(--muted); text-align:center; border:1px dashed #ccd5e2; border-radius:12px; }
+    @media (max-width:760px) { header { padding:0 4%; } .grid { grid-template-columns:1fr; } .metrics { gap:8px; } .metric { padding:14px 10px; } .metric b { font-size:24px; } .queue-item { flex-wrap:wrap; } .actions { width:100%; } .actions button { flex:1; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header><div class="brand"><div class="logo">Q</div> QueueFlow</div><div class="status">系統運作中</div></header>
+    <main>
+      <div class="intro"><h1>排隊叫號系統</h1><p>讓候位流程更清楚，讓每位客人都能掌握自己的等待進度。</p></div>
+      <div class="grid"><section id="guest"><div class="card">
+        <h2>加入候位隊伍</h2><p class="sub">請留下聯絡資料，取得您的排隊號碼。</p>
+        <form id="join-form"><label for="name">姓名</label><input id="name" required placeholder="例如：王小明"><label for="phone">電話號碼</label><input id="phone" required inputmode="tel" placeholder="例如：0912-345-678"><button class="primary">取得排隊號碼</button><button type="button" class="random" id="random-person">隨機產生客人資料</button></form>
+        <div id="ticket" class="ticket">登記成功！您的號碼是<strong id="ticket-number">A001</strong><small>請留意櫃檯叫號</small></div>
+      </div><div class="card" style="margin-top:20px"><div class="section-title"><h2>目前排隊現況</h2><span class="badge" id="wait-count">0 人候位</span></div><div id="guest-queue" class="queue-list"></div></div></section>
+      <section id="counter"><div class="now-card"><small>櫃檯叫號中</small><div class="current"><div class="current-number" id="now-serving">---</div><div class="current-info"><b id="now-name">尚未叫號</b><span id="now-phone">請從下方名單叫號</span></div></div></div><div class="metrics"><div class="metric"><small>候位人數</small><b id="counter-count">0</b></div><div class="metric"><small>今日已服務</small><b id="served-count">0</b></div></div><div class="card"><div class="section-title"><h2>入隊順序與客人資料</h2><div class="toolbar"><label class="switch-label" title="完成服務後自動從客人資料佇列移除"><input type="checkbox" id="auto-remove" checked><span class="switch"></span>完成後自動移除</label><button class="action muted" id="reset">清除示範資料</button></div></div><div id="counter-queue" class="queue-list"></div></div></section></div>
+    </main>
+  </div>
+  <script>
+    const state = { queue: [
+      { id:'A001', name:'陳怡君', phone:'0912-***-321', status:'waiting' },
+      { id:'A002', name:'林志豪', phone:'0988-***-765', status:'waiting' },
+      { id:'A003', name:'張雅婷', phone:'0921-***-888', status:'waiting' }
+    ], serving:null, served:0 };
+    const $ = s => document.querySelector(s);
+    function render() {
+      const waiting = state.queue.filter(x => x.status === 'waiting');
+      $('#wait-count').textContent = waiting.length + ' 人候位'; $('#counter-count').textContent = waiting.length; $('#served-count').textContent = state.served; $('#now-serving').textContent = state.serving || '尚未叫號';
+      const serving = state.queue.find(x => x.id === state.serving);
+      $('#now-serving').textContent = serving ? serving.id : '---'; $('#now-name').textContent = serving ? serving.name : '尚未叫號'; $('#now-phone').textContent = serving ? '電話：' + serving.phone : '請從下方名單叫號';
+      const item = (p, counter) => `<div class="queue-item"><div class="number">${p.id}</div><div class="person"><b>${p.name}</b><span>電話：${p.phone}</span></div><span class="badge">${p.status === 'waiting' ? '候位中' : '已完成'}</span>${counter && p.status === 'waiting' ? `<div class="actions"><button class="action" onclick="callNext('${p.id}')">叫號</button><button class="action done" onclick="finish('${p.id}')">完成</button></div>` : ''}</div>`;
+      const html = waiting.length ? waiting.map(p => item(p, false)).join('') : '<div class="empty">目前沒有候位客人</div>';
+      $('#guest-queue').innerHTML = html; $('#counter-queue').innerHTML = state.queue.length ? state.queue.map(p => item(p, true)).join('') : '<div class="empty">尚無登記資料</div>';
+    }
+    window.callNext = id => { state.serving = id; render(); };
+    window.finish = id => { const index = state.queue.findIndex(x => x.id === id); if (index !== -1) { state.served++; if (state.serving===id) state.serving=null; if ($('#auto-remove').checked) state.queue.splice(index, 1); else state.queue[index].status='done'; render(); } };
+    $('#join-form').addEventListener('submit', e => { e.preventDefault(); const name=$('#name').value.trim(), phone=$('#phone').value.trim(); const id='A'+String(state.queue.length+1).padStart(3,'0'); state.queue.push({id,name,phone:phone.slice(0,4)+'-***-'+phone.slice(-3),status:'waiting'}); $('#ticket-number').textContent=id; $('#ticket').classList.add('show'); e.target.reset(); render(); });
+    $('#random-person').addEventListener('click', () => { const names=['陳冠宇','李欣怡','黃柏翰','吳佩珊','周子軒','許雅雯','趙品睿']; const name=names[Math.floor(Math.random()*names.length)]; const phone='09'+Math.floor(10000000+Math.random()*90000000); $('#name').value=name; $('#phone').value=phone; });
+    $('#reset').addEventListener('click', () => { state.queue=[]; state.serving=null; state.served=0; render(); }); render();
+  </script>
+</body>
+</html>
